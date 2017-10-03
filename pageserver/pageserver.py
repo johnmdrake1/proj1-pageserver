@@ -22,7 +22,8 @@ log = logging.getLogger(__name__)
 
 import socket    # Basic TCP/IP communication on the internet
 import _thread   # Response computation runs concurrently with main program
-
+import os.path
+import re
 
 def listen(portnum):
     """
@@ -77,6 +78,22 @@ STATUS_FORBIDDEN = "HTTP/1.0 403 Forbidden\n\n"
 STATUS_NOT_FOUND = "HTTP/1.0 404 Not Found\n\n"
 STATUS_NOT_IMPLEMENTED = "HTTP/1.0 401 Not Implemented\n\n"
 
+#def checkparts(parts):
+    #make sure filename doesn't have special characters and ends in .css or .html
+
+ #   matchobj = re.match(r'^[a-zA-z]+$', parts, re.html|re.css)
+    
+ #   if parts.endswith('.css'):
+        #return True
+
+    #elif parts.endswith('.html'):
+        #return True
+   # else:
+       # return False
+
+
+    
+
 
 def respond(sock):
     """
@@ -92,7 +109,40 @@ def respond(sock):
     parts = request.split()
     if len(parts) > 1 and parts[0] == "GET":
         transmit(STATUS_OK, sock)
-        transmit(CAT, sock)
+        #transmit(CAT, sock)
+        if ("..") in parts[1]:
+            transmit(STATUS_FORBIDDEN, sock)
+        if ("~") in parts[1]:
+            transmit(STATUS_FORBIDDEN, sock)
+        if ("//") in parts[1]:
+            transmit(STATUS_FORBIDDEN, sock)
+        #if not (parts[1].endswith((".html") or (".css"))):
+ #           transmit(STATUS_FORBIDDEN, sock)
+                
+        #if (".html") or (".css") not in parts[1]:
+ #           transmit(STATUS_FORBIDDEN, sock)
+            
+        source_path = os.path.join(DOCROOT, parts[1][1:])
+        log.debug("Source path: {}".format(source_path))
+        try: 
+            with open(source_path, 'r', encoding='utf-8') as source:
+                for line in source:
+                    transmit(line.strip(), sock)
+        except OSError as error:
+            log.warn("Failed to open or read file")
+            log.warn("Requested file was {}".format(source_path))
+            log.warn("Exception: {}".format(error))
+            transmit(STATUS_NOT_FOUND, sock)
+            
+            
+
+
+
+
+        
+        
+            
+        
     else:
         log.info("Unhandled request: {}".format(request))
         transmit(STATUS_NOT_IMPLEMENTED, sock)
@@ -136,7 +186,9 @@ def get_options():
 
 
 def main():
+    global DOCROOT
     options = get_options()
+    DOCROOT = options.DOCROOT
     port = options.PORT
     if options.DEBUG:
         log.setLevel(logging.DEBUG)
